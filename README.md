@@ -36,22 +36,57 @@ Tablet ile bilgisayar aynı Wi-Fi ağında olmalı. Ağ sorun çıkarırsa tüne
 npx expo start --tunnel
 ```
 
-## Kurulabilir dosya üretme (EAS Build)
+## Kurulum dosyası üretme
 
-Bulutta derlenir, Mac gerekmez. Apple tarafı için Apple Developer hesabı gerekir.
+### Android — otomatik, hesap gerekmez
+
+Bir sürüm etiketi atmak yeterli; [GitHub Actions](.github/workflows/release.yml)
+`.apk` üretip Release'e ekler.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Etiket atmadan denemek için: Actions sekmesi → **Release** → *Run workflow*.
+
+Akış EAS kullanmaz, dolayısıyla Expo hesabı veya secret istemez. GitHub'ın
+ücretsiz runner'ında `expo prebuild` + `gradlew assembleRelease` çalışır.
+Expo'nun Android şablonu release derlemesini `debug.keystore` ile imzaladığı
+için çıkan APK doğrudan kurulabilir.
+
+> Bu APK kişisel kullanım/sideload içindir. Play Store'a çıkacaksan kendi
+> keystore'unu üretip `android/app/build.gradle` içindeki `release` imza
+> yapılandırmasını değiştirmen gerekir.
+
+### iOS — kurulum dosyası üretilemiyor
+
+**`.ipa` üretmek Apple Developer Program üyeliği (yılda 99$) gerektirir.**
+Apple, fiziksel cihaza kurulacak her uygulamanın provisioning profile ve
+distribution certificate ile imzalanmasını zorunlu tutuyor; ikisi de ücretli
+üyeliğe bağlı ve EAS ücretsiz Apple ID kabul etmiyor.
+
+İşe yaramayan yollar:
+
+- `"simulator": true` ile üretilen build imzasızdır ve **yalnızca Mac'teki iOS
+  Simulator'de** çalışır, iPad'e kurulmaz.
+- İmzasız `.ipa`'yı AltStore/Sideloadly ile ücretsiz Apple ID kullanarak
+  imzalamak mümkün ama **7 günde bir yeniden imzalamak** gerekir.
+
+iPad'de oynamanın pratik yolu Expo Go (yukarıdaki "Çalıştırma" bölümü).
+
+Üyelik alınırsa `.github/workflows/release.yml` dosyasına bir `ios` job'i
+eklenebilir; o noktada EAS Build gerekir:
 
 ```bash
 npm install -g eas-cli
 eas login
-eas build:configure
-
-eas build --platform android --profile preview   # doğrudan kurulabilen .apk
-eas build --platform ios --profile preview       # cihaza kurulabilen .ipa
+eas build --platform ios --profile preview
 ```
 
-Mağazaya çıkacaksan `preview` yerine `production` profilini kullan ve
-`app.json` içindeki `ios.bundleIdentifier` / `android.package` değerlerini
-kendi alan adına göre değiştir (şu an `com.aren.adamasmaca`).
+Mağazaya çıkacaksan `app.json` içindeki `ios.bundleIdentifier` /
+`android.package` değerlerini kendi alan adına göre değiştir (şu an
+`com.aren.adamasmaca`).
 
 ## Dosya düzeni
 
@@ -66,6 +101,7 @@ kendi alan adına göre değiştir (şu an `com.aren.adamasmaca`).
 | [src/components/StartScreen.js](src/components/StartScreen.js) | Açılış ekranı |
 | [src/components/EndScreen.js](src/components/EndScreen.js) | Sonuç ekranı |
 | [web-prototype/](web-prototype/) | Tarayıcıda açılan hızlı önizleme (uygulamanın parçası değil) |
+| [.github/workflows/release.yml](.github/workflows/release.yml) | Etiket atınca APK üretip Release'e ekleyen akış |
 
 ## Ayarları değiştirme
 

@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f4efe4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Adam Asmaca — Çarpım Tablosu</title>
+<style>
+  :root{
+    --paper:#f4efe4;
+    --card:#fffdf8;
+    --ink:#2f2a24;
+    --ink-soft:#7a7065;
+    --line:#ded4c2;
+    --wood:#b0a08a;
+    --green:#2f7d55;
+    --green-soft:#e4f0e8;
+    --red:#b3402f;
+    --red-soft:#f7e3df;
+    --blue:#2c5f8a;
+    --pad:clamp(8px, 1.6vmin, 16px);
+    --radius:14px;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+  html,body{
+    height:100%;
+    overflow:hidden;
+    overscroll-behavior:none;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:ui-rounded,"SF Pro Rounded","Segoe UI Variable Display",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-user-select:none;user-select:none;
+    -webkit-text-size-adjust:100%;
+  }
+
+  body{
+    position:fixed;inset:0;
+    display:flex;flex-direction:column;
+    padding:calc(var(--pad) + env(safe-area-inset-top)) calc(var(--pad) + env(safe-area-inset-right))
+            calc(var(--pad) + env(safe-area-inset-bottom)) calc(var(--pad) + env(safe-area-inset-left));
+    gap:var(--pad);
+  }
+
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;touch-action:manipulation}
+
+  /* ---------- üst bar ---------- */
+  header{
+    flex:0 0 auto;
+    display:flex;align-items:center;gap:var(--pad);
+    padding:0 4px;
+  }
+  .stat{
+    display:flex;align-items:baseline;gap:.4em;
+    font-size:clamp(13px,1.9vmin,19px);color:var(--ink-soft);
+    white-space:nowrap;
+  }
+  .stat b{font-size:clamp(17px,2.6vmin,26px);color:var(--ink);font-variant-numeric:tabular-nums}
+  .stat.ok b{color:var(--green)}
+  .stat.bad b{color:var(--red)}
+  .spacer{flex:1}
+  .icon-btn{
+    width:clamp(38px,5.2vmin,50px);height:clamp(38px,5.2vmin,50px);
+    border-radius:50%;border:2px solid var(--line);background:var(--card);
+    display:grid;place-items:center;font-size:clamp(16px,2.2vmin,21px);line-height:1;
+  }
+  .icon-btn:active{background:var(--line)}
+
+  .bar{
+    flex:0 0 auto;height:8px;border-radius:99px;background:var(--line);overflow:hidden;
+  }
+  .bar>span{display:block;height:100%;width:0;background:var(--blue);border-radius:99px;transition:width .35s ease}
+
+  /* ---------- ana alan ---------- */
+  main{
+    flex:1 1 auto;min-height:0;
+    display:grid;gap:var(--pad);
+    grid-template-rows:minmax(0,1fr) minmax(0,1.15fr);
+  }
+  @media (min-aspect-ratio:1/1){
+    main{grid-template-rows:none;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr)}
+  }
+
+  .panel{
+    background:var(--card);border:2px solid var(--line);border-radius:var(--radius);
+    min-height:0;min-width:0;
+  }
+
+  /* ---------- darağacı ---------- */
+  #stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--pad);position:relative}
+  #gallows{width:100%;height:100%;max-height:100%;display:block}
+  /* Darağacı baştan görünür durur; sadece adam yavaş yavaş belirir. */
+  #frame line{
+    fill:none;stroke:var(--wood);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;
+  }
+  #gallows .part{
+    fill:none;stroke:var(--ink);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;
+    transition:stroke-dashoffset .7s cubic-bezier(.4,.05,.3,1);
+  }
+  #man{transform-box:view-box;transform-origin:130px 22px}
+  #man.dead{animation:sway 3.4s ease-in-out infinite}
+  @keyframes sway{0%,100%{transform:rotate(-3.5deg)}50%{transform:rotate(3.5deg)}}
+  #face{opacity:0;transition:opacity .4s ease .35s}
+  #face.on{opacity:1}
+
+  #lives{
+    position:absolute;left:var(--pad);top:var(--pad);
+    font-size:clamp(11px,1.5vmin,15px);color:var(--ink-soft);
+    background:var(--paper);border-radius:99px;padding:.35em .8em;
+  }
+
+  /* ---------- soru + tuş takımı ---------- */
+  #play{display:flex;flex-direction:column;padding:var(--pad);gap:var(--pad);min-height:0}
+
+  #question{
+    flex:0 0 auto;text-align:center;
+    font-size:clamp(34px,7.5vmin,76px);font-weight:700;letter-spacing:.02em;
+    font-variant-numeric:tabular-nums;
+    padding:.15em 0;
+  }
+  #question .op{color:var(--ink-soft);margin:0 .12em}
+
+  #answer{
+    flex:0 0 auto;
+    height:clamp(52px,9vmin,86px);
+    border:3px dashed var(--line);border-radius:12px;
+    display:grid;place-items:center;
+    font-size:clamp(28px,5.5vmin,54px);font-weight:700;font-variant-numeric:tabular-nums;
+    background:var(--paper);
+    transition:background .2s,border-color .2s,color .2s;
+  }
+  #answer.empty{color:var(--line)}
+  #answer.right{background:var(--green-soft);border-color:var(--green);border-style:solid;color:var(--green)}
+  #answer.wrong{background:var(--red-soft);border-color:var(--red);border-style:solid;color:var(--red)}
+  #answer.shake{animation:shake .32s}
+  @keyframes shake{
+    0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}
+    40%{transform:translateX(9px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}
+  }
+
+  #hint{
+    flex:0 0 auto;min-height:1.5em;text-align:center;
+    font-size:clamp(14px,2.2vmin,22px);font-weight:600;color:var(--ink-soft);
+  }
+  #hint.right{color:var(--green)}
+  #hint.wrong{color:var(--red)}
+
+  #keypad{
+    flex:1 1 auto;min-height:0;
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr);
+    gap:clamp(6px,1.1vmin,12px);
+  }
+  .key{
+    border:2px solid var(--line);border-radius:12px;background:var(--paper);
+    font-size:clamp(20px,4vmin,38px);font-weight:600;font-variant-numeric:tabular-nums;
+    display:grid;place-items:center;
+    transition:transform .07s,background .12s;
+  }
+  .key:active{background:var(--line);transform:scale(.95)}
+  .key.wide{font-size:clamp(15px,2.4vmin,26px)}
+  .key.del{color:var(--red)}
+  .key.ok{background:var(--green);border-color:var(--green);color:#fff}
+  .key.ok:active{background:#266745}
+  .key[disabled]{opacity:.4}
+
+  /* ---------- ekranlar ---------- */
+  .screen{
+    position:fixed;inset:0;z-index:10;
+    background:var(--paper);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:clamp(14px,2.6vmin,28px);
+    padding:calc(var(--pad)*2 + env(safe-area-inset-top)) calc(var(--pad)*2) calc(var(--pad)*2 + env(safe-area-inset-bottom));
+    text-align:center;
+  }
+  .screen[hidden]{display:none}
+  .screen h1{font-size:clamp(30px,6.5vmin,64px);line-height:1.05;font-weight:800}
+  .screen h2{font-size:clamp(24px,5vmin,50px);font-weight:800}
+  .screen p{font-size:clamp(15px,2.4vmin,24px);color:var(--ink-soft);max-width:34ch;line-height:1.5}
+  .cta{
+    background:var(--green);color:#fff;border-radius:99px;
+    padding:clamp(14px,2.2vmin,22px) clamp(38px,6vmin,72px);
+    font-size:clamp(19px,3.2vmin,32px);font-weight:700;
+    transition:transform .08s;
+  }
+  .cta:active{transform:scale(.96)}
+  .scoreline{
+    display:flex;gap:clamp(18px,4vmin,44px);
+    font-size:clamp(14px,2.1vmin,21px);color:var(--ink-soft);
+  }
+  .scoreline b{display:block;font-size:clamp(26px,5vmin,48px);color:var(--ink);font-variant-numeric:tabular-nums}
+  .scoreline .ok b{color:var(--green)}
+  .scoreline .bad b{color:var(--red)}
+  .rules{
+    display:grid;gap:.55em;text-align:left;
+    font-size:clamp(14px,2.1vmin,22px);color:var(--ink-soft);line-height:1.45;
+  }
+  .rules div{display:grid;grid-template-columns:1.6em 1fr;align-items:start}
+  .rules span{color:var(--ink);font-weight:700}
+  #missed{
+    display:flex;flex-wrap:wrap;justify-content:center;gap:.45em;
+    max-width:min(90vw,640px);
+  }
+  #missed i{
+    font-style:normal;background:var(--red-soft);color:var(--red);
+    border-radius:8px;padding:.3em .6em;font-size:clamp(13px,1.9vmin,19px);
+    font-weight:600;font-variant-numeric:tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="stat"><span>Soru</span><b id="s-q">1</b><span>/ 20</span></div>
+  <div class="stat ok"><span>Doğru</span><b id="s-ok">0</b></div>
+  <div class="stat bad"><span>Yanlış</span><b id="s-bad">0</b></div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="btn-sound" aria-label="Ses aç/kapat">🔊</button>
+  <button class="icon-btn" id="btn-restart" aria-label="Baştan başla">↺</button>
+</header>
+
+<div class="bar"><span id="progress"></span></div>
+
+<main>
+  <section class="panel" id="stage">
+    <div id="lives">Kalan hata hakkı: <b id="s-lives">6</b></div>
+    <svg id="gallows" viewBox="0 0 200 220" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <g id="frame">
+        <line x1="18"  y1="206" x2="122" y2="206"/>
+        <line x1="42"  y1="206" x2="42"  y2="22"/>
+        <line x1="42"  y1="22"  x2="130" y2="22"/>
+        <line x1="42"  y1="50"  x2="70"  y2="22"/>
+        <line x1="130" y1="22"  x2="130" y2="46"/>
+      </g>
+      <g id="man">
+        <circle class="part" cx="130" cy="63" r="17"/>
+        <line class="part" x1="130" y1="80"  x2="130" y2="134"/>
+        <line class="part" x1="130" y1="95"  x2="105" y2="118"/>
+        <line class="part" x1="130" y1="95"  x2="155" y2="118"/>
+        <line class="part" x1="130" y1="134" x2="108" y2="170"/>
+        <line class="part" x1="130" y1="134" x2="152" y2="170"/>
+        <g id="face" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round" fill="none">
+          <line x1="120" y1="56" x2="127" y2="63"/><line x1="127" y1="56" x2="120" y2="63"/>
+          <line x1="133" y1="56" x2="140" y2="63"/><line x1="140" y1="56" x2="133" y2="63"/>
+          <path d="M122 74 Q130 68 138 74"/>
+        </g>
+      </g>
+    </svg>
+  </section>
+
+  <section class="panel" id="play">
+    <div id="question"><span id="q-a">7</span><span class="op">×</span><span id="q-b">8</span><span class="op">=</span><span class="op">?</span></div>
+    <div id="answer" class="empty">—</div>
+    <div id="hint"></div>
+    <div id="keypad"></div>
+  </section>
+</main>
+
+<!-- başlangıç ekranı -->
+<section class="screen" id="scr-start">
+  <h1>Adam Asmaca<br>Çarpım Tablosu</h1>
+  <div class="rules">
+    <div><span>20</span> soru sorulur, hepsi 10×10'a kadar çarpma.</div>
+    <div><span>✓</span> Doğru cevap: adam güvende kalır.</div>
+    <div><span>✗</span> Yanlış cevap: doğrusu gösterilir, adamdan bir parça çizilir.</div>
+    <div><span>6</span> hata hakkın var. Adam tamamlanırsa oyun biter.</div>
+    <div><span>🏆</span> 20 soru bitip adam asılmadıysa kazandın!</div>
+  </div>
+  <button class="cta" id="btn-start">Başla</button>
+</section>
+
+<!-- bitiş ekranı -->
+<section class="screen" id="scr-end" hidden>
+  <h2 id="end-title">Kazandın!</h2>
+  <p id="end-text"></p>
+  <div class="scoreline">
+    <div class="ok"><b id="end-ok">0</b>doğru</div>
+    <div class="bad"><b id="end-bad">0</b>yanlış</div>
+    <div><b id="end-pct">0%</b>başarı</div>
+  </div>
+  <div id="missed"></div>
+  <button class="cta" id="btn-again">Yeniden Oyna</button>
+</section>
+
+<script>
+(function(){
+  'use strict';
+
+  var TOTAL_QUESTIONS = 20;
+  var MAX_FACTOR = 10;
+
+  var parts = Array.prototype.slice.call(document.querySelectorAll('#gallows .part'));
+  var MAX_MISTAKES = parts.length; // adamın 6 parçası = 6 hata hakkı
+
+  var el = {
+    q:      document.getElementById('s-q'),
+    ok:     document.getElementById('s-ok'),
+    bad:    document.getElementById('s-bad'),
+    lives:  document.getElementById('s-lives'),
+    prog:   document.getElementById('progress'),
+    qa:     document.getElementById('q-a'),
+    qb:     document.getElementById('q-b'),
+    answer: document.getElementById('answer'),
+    hint:   document.getElementById('hint'),
+    keypad: document.getElementById('keypad'),
+    man:    document.getElementById('man'),
+    face:   document.getElementById('face'),
+    start:  document.getElementById('scr-start'),
+    end:    document.getElementById('scr-end'),
+    endTitle: document.getElementById('end-title'),
+    endText:  document.getElementById('end-text'),
+    endOk:  document.getElementById('end-ok'),
+    endBad: document.getElementById('end-bad'),
+    endPct: document.getElementById('end-pct'),
+    missed: document.getElementById('missed')
+  };
+
+  var state = {
+    queue: [], index: 0, correct: 0, mistakes: 0,
+    typed: '', locked: true, missed: [], timer: null
+  };
+
+  /* ---------------- darağacı çizimi ---------------- */
+
+  parts.forEach(function(p){
+    var len = p.getTotalLength();
+    p.style.strokeDasharray  = len + ' ' + len;
+    p.style.strokeDashoffset = len;
+  });
+
+  function resetDrawing(){
+    parts.forEach(function(p){
+      p.style.transition = 'none';
+      p.style.strokeDashoffset = p.getTotalLength();
+    });
+    // reflow: geçişi kapatıp açmak anlık sıfırlamayı garantiler
+    void document.getElementById('gallows').getBoundingClientRect();
+    parts.forEach(function(p){ p.style.transition = ''; });
+    el.man.classList.remove('dead');
+    el.face.classList.remove('on');
+  }
+
+  function drawNextPart(n){
+    var p = parts[n];
+    if (p) p.style.strokeDashoffset = 0;
+  }
+
+  /* ---------------- ses ---------------- */
+
+  var audio = { ctx:null, on:true };
+
+  function initAudio(){
+    if (audio.ctx) return;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) { try { audio.ctx = new AC(); } catch(e){ audio.ctx = null; } }
+  }
+
+  function tone(freq, start, dur, vol){
+    if (!audio.on || !audio.ctx) return;
+    var t0 = audio.ctx.currentTime + start;
+    var osc = audio.ctx.createOscillator();
+    var gain = audio.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain); gain.connect(audio.ctx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.05);
+  }
+
+  var sfx = {
+    tap:   function(){ tone(520, 0, 0.05, 0.08); },
+    right: function(){ tone(660, 0, 0.12, 0.15); tone(880, 0.09, 0.20, 0.15); },
+    wrong: function(){ tone(300, 0, 0.16, 0.14); tone(200, 0.14, 0.28, 0.14); },
+    win:   function(){ [523,659,784,1047].forEach(function(f,i){ tone(f, i*0.12, 0.30, 0.16); }); },
+    lose:  function(){ [392,330,262,196].forEach(function(f,i){ tone(f, i*0.18, 0.40, 0.16); }); }
+  };
+
+  /* ---------------- soru üretimi ---------------- */
+
+  function buildQueue(){
+    var pool = [];
+    for (var a = 1; a <= MAX_FACTOR; a++){
+      for (var b = a; b <= MAX_FACTOR; b++) pool.push([a, b]);
+    }
+    // Fisher-Yates
+    for (var i = pool.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    return pool.slice(0, TOTAL_QUESTIONS).map(function(pair){
+      // çarpanların sırasını da rastgele çevir
+      return Math.random() < 0.5 ? { a: pair[0], b: pair[1] } : { a: pair[1], b: pair[0] };
+    });
+  }
+
+  /* ---------------- tuş takımı ---------------- */
+
+  function buildKeypad(){
+    var keys = ['1','2','3','4','5','6','7','8','9','del','0','ok'];
+    keys.forEach(function(k){
+      var btn = document.createElement('button');
+      btn.className = 'key';
+      if (k === 'del'){ btn.classList.add('wide','del'); btn.textContent = 'Sil'; }
+      else if (k === 'ok'){ btn.classList.add('wide','ok'); btn.textContent = 'Tamam'; }
+      else btn.textContent = k;
+      btn.dataset.key = k;
+      el.keypad.appendChild(btn);
+    });
+    el.keypad.addEventListener('click', function(e){
+      var b = e.target.closest('.key');
+      if (b) press(b.dataset.key);
+    });
+  }
+
+  function press(k){
+    if (state.locked) return;
+    if (k === 'del'){
+      if (!state.typed) return;
+      state.typed = state.typed.slice(0, -1);
+      sfx.tap(); renderAnswer();
+    } else if (k === 'ok'){
+      submit();
+    } else {
+      if (state.typed.length >= 3) return;
+      if (state.typed === '' && k === '0') return; // 0 ile başlayan cevap yok
+      state.typed += k;
+      sfx.tap(); renderAnswer();
+    }
+  }
+
+  document.addEventListener('keydown', function(e){
+    if (!el.start.hidden || !el.end.hidden){
+      if (e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        (el.start.hidden ? document.getElementById('btn-again') : document.getElementById('btn-start')).click();
+      }
+      return;
+    }
+    if (e.key >= '0' && e.key <= '9') press(e.key);
+    else if (e.key === 'Backspace'){ e.preventDefault(); press('del'); }
+    else if (e.key === 'Enter'){ e.preventDefault(); press('ok'); }
+  });
+
+  /* ---------------- oyun akışı ---------------- */
+
+  function renderAnswer(){
+    el.answer.textContent = state.typed || '—';
+    el.answer.classList.toggle('empty', !state.typed);
+  }
+
+  function renderStats(){
+    el.q.textContent     = Math.min(state.index + 1, TOTAL_QUESTIONS);
+    el.ok.textContent    = state.correct;
+    el.bad.textContent   = state.mistakes;
+    el.lives.textContent = MAX_MISTAKES - state.mistakes;
+    el.prog.style.width  = (state.index / TOTAL_QUESTIONS * 100) + '%';
+  }
+
+  function showQuestion(){
+    var q = state.queue[state.index];
+    el.qa.textContent = q.a;
+    el.qb.textContent = q.b;
+    state.typed = '';
+    el.answer.className = 'empty';
+    el.hint.className = '';
+    el.hint.textContent = '';
+    renderAnswer();
+    renderStats();
+    state.locked = false;
+  }
+
+  function submit(){
+    if (!state.typed){
+      el.answer.classList.remove('shake');
+      void el.answer.offsetWidth;
+      el.answer.classList.add('shake');
+      el.hint.className = '';
+      el.hint.textContent = 'Önce bir sayı yaz.';
+      return;
+    }
+
+    state.locked = true;
+    var q = state.queue[state.index];
+    var truth = q.a * q.b;
+    var given = parseInt(state.typed, 10);
+    var delay;
+
+    if (given === truth){
+      state.correct++;
+      el.answer.className = 'right';
+      el.hint.className = 'right';
+      el.hint.textContent = 'Doğru!';
+      sfx.right();
+      delay = 850;
+    } else {
+      state.mistakes++;
+      el.answer.className = 'wrong';
+      el.hint.className = 'wrong';
+      el.hint.textContent = 'Doğru cevap: ' + q.a + ' × ' + q.b + ' = ' + truth;
+      state.missed.push(q.a + '×' + q.b + '=' + truth);
+      drawNextPart(state.mistakes - 1);
+      sfx.wrong();
+      delay = 2300;
+    }
+
+    renderStats();
+    state.index++;
+
+    state.timer = setTimeout(function(){
+      if (state.mistakes >= MAX_MISTAKES) finish(false);
+      else if (state.index >= TOTAL_QUESTIONS) finish(true);
+      else showQuestion();
+    }, delay);
+  }
+
+  function finish(won){
+    if (!won){
+      el.man.classList.add('dead');
+      el.face.classList.add('on');
+      sfx.lose();
+    } else {
+      sfx.win();
+    }
+
+    var pct = Math.round(state.correct / state.index * 100);
+    el.endTitle.textContent = won ? 'Kazandın! 🏆' : 'Adam asıldı…';
+    el.endText.textContent  = won
+      ? (state.mistakes === 0
+          ? 'Yirmi sorunun hepsi doğru. Kusursuz!'
+          : '20 soru bitti, adam hâlâ ayakta. Harika iş!')
+      : state.index + '. soruda hata hakkın bitti. Bir daha dene!';
+    el.endOk.textContent  = state.correct;
+    el.endBad.textContent = state.mistakes;
+    el.endPct.textContent = pct + '%';
+
+    el.missed.innerHTML = '';
+    if (state.missed.length){
+      var label = document.createElement('i');
+      label.textContent = 'Tekrar bak:';
+      label.style.background = 'transparent';
+      label.style.color = 'var(--ink-soft)';
+      el.missed.appendChild(label);
+      state.missed.forEach(function(m){
+        var chip = document.createElement('i');
+        chip.textContent = m;
+        el.missed.appendChild(chip);
+      });
+    }
+
+    el.end.hidden = false;
+  }
+
+  function newGame(){
+    clearTimeout(state.timer);
+    state.queue    = buildQueue();
+    state.index    = 0;
+    state.correct  = 0;
+    state.mistakes = 0;
+    state.missed   = [];
+    state.typed    = '';
+    resetDrawing();
+    el.end.hidden   = true;
+    el.start.hidden = true;
+    showQuestion();
+  }
+
+  /* ---------------- kurulum ---------------- */
+
+  buildKeypad();
+  renderStats();
+
+  document.getElementById('btn-start').addEventListener('click', function(){
+    initAudio();
+    if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
+    newGame();
+  });
+
+  document.getElementById('btn-again').addEventListener('click', newGame);
+
+  document.getElementById('btn-restart').addEventListener('click', function(){
+    if (state.index > 0 && el.end.hidden && !confirm('Oyun baştan başlasın mı?')) return;
+    newGame();
+  });
+
+  document.getElementById('btn-sound').addEventListener('click', function(){
+    audio.on = !audio.on;
+    this.textContent = audio.on ? '🔊' : '🔇';
+  });
+
+  // çift dokunuşla yakınlaştırmayı engelle (iOS Safari)
+  document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
+  document.addEventListener('dblclick', function(e){ e.preventDefault(); });
+})();
+</script>
+</body>
+</html>

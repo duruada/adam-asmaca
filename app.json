@@ -1,17 +1,27 @@
 {
   "expo": {
-    "name": "adam-asmaca",
+    "name": "Adam Asmaca",
     "slug": "adam-asmaca",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
+    "scheme": "adamasmaca",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#F4EFE4",
+    "primaryColor": "#2F7D55",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "requireFullScreen": true,
+      "bundleIdentifier": "com.aren.adamasmaca",
+      "infoPlist": {
+        "UIStatusBarHidden": true,
+        "UIViewControllerBasedStatusBarAppearance": false
+      }
     },
     "android": {
+      "package": "com.aren.adamasmaca",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F4EFE4",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -19,6 +29,17 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#F4EFE4"
+        }
+      ]
+    ]
   }
 }

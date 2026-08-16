@@ -59,34 +59,38 @@ için çıkan APK doğrudan kurulabilir.
 > keystore'unu üretip `android/app/build.gradle` içindeki `release` imza
 > yapılandırmasını değiştirmen gerekir.
 
-### iOS — kurulum dosyası üretilemiyor
+### iOS — imzasız IPA, Mac ve Apple üyeliği gerekmez
 
-**`.ipa` üretmek Apple Developer Program üyeliği (yılda 99$) gerektirir.**
-Apple, fiziksel cihaza kurulacak her uygulamanın provisioning profile ve
-distribution certificate ile imzalanmasını zorunlu tutuyor; ikisi de ücretli
-üyeliğe bağlı ve EAS ücretsiz Apple ID kabul etmiyor.
+[.github/workflows/ios-ipa.yml](.github/workflows/ios-ipa.yml) GitHub'ın
+**macOS runner'ında** imzasız bir `.ipa` üretir. Ne Mac ne de ücretli Apple
+Developer üyeliği gerekir: imzalama işini **SideStore / AltStore** telefonda
+kendi Apple ID'nle yapar, o yüzden burada bilerek imzalamıyoruz.
 
-İşe yaramayan yollar:
-
-- `"simulator": true` ile üretilen build imzasızdır ve **yalnızca Mac'teki iOS
-  Simulator'de** çalışır, iPad'e kurulmaz.
-- İmzasız `.ipa`'yı AltStore/Sideloadly ile ücretsiz Apple ID kullanarak
-  imzalamak mümkün ama **7 günde bir yeniden imzalamak** gerekir.
-
-iPad'de oynamanın pratik yolu Expo Go (yukarıdaki "Çalıştırma" bölümü).
-
-Üyelik alınırsa `.github/workflows/release.yml` dosyasına bir `ios` job'i
-eklenebilir; o noktada EAS Build gerekir:
+Aynı etiket iki akışı da tetikler, ikisi de aynı Release'e dosya ekler:
 
 ```bash
-npm install -g eas-cli
-eas login
-eas build --platform ios --profile preview
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-Mağazaya çıkacaksan `app.json` içindeki `ios.bundleIdentifier` /
-`android.package` değerlerini kendi alan adına göre değiştir (şu an
-`com.aren.adamasmaca`).
+Etiketsiz denemek için: Actions → **iOS IPA (imzasız)** → *Run workflow*.
+Bu durumda dosya Release'e değil, 30 gün saklanan artifact'e düşer.
+
+Kurulum: `.ipa`'yı SideStore veya AltStore ile iPad'e yükle. Ücretsiz Apple
+ID kullanılıyorsa imza 7 günde bir yenilenmeli; SideStore bunu aynı ağdaki
+cihazda otomatik yapabilir.
+
+> Xcode sürümü kritik: Expo SDK 57'nin Swift kaynağı Xcode 26.6 ister.
+> `macos-15` imajı 26.3'te kalıyor ve derleme kırılıyor, bu yüzden akış
+> `macos-26` üzerinde çalışıyor. Bu kurgu
+> [duruada/ters-ses](https://github.com/duruada/ters-ses) deposunda
+> doğrulandı.
+
+### Mağazaya çıkarken
+
+`app.json` içindeki `ios.bundleIdentifier` / `android.package` değerlerini
+kendi alan adına göre değiştir (şu an `com.aren.adamasmaca`). App Store için
+imzalı build gerekir, o noktada Apple Developer üyeliği devreye girer.
 
 ## Dosya düzeni
 
@@ -102,6 +106,7 @@ Mağazaya çıkacaksan `app.json` içindeki `ios.bundleIdentifier` /
 | [src/components/EndScreen.js](src/components/EndScreen.js) | Sonuç ekranı |
 | [web-prototype/](web-prototype/) | Tarayıcıda açılan hızlı önizleme (uygulamanın parçası değil) |
 | [.github/workflows/release.yml](.github/workflows/release.yml) | Etiket atınca APK üretip Release'e ekleyen akış |
+| [.github/workflows/ios-ipa.yml](.github/workflows/ios-ipa.yml) | Etiket atınca imzasız IPA üretip Release'e ekleyen akış |
 
 ## Ayarları değiştirme
 

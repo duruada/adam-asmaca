@@ -7,10 +7,9 @@ name: Release
 # Expo'nun Android sablonu release derlemesini debug.keystore ile imzaladigi
 # icin cikan APK dogrudan kurulabilir (bkz. android/app/build.gradle).
 #
-# iOS (.ipa) neden yok: Apple, fiziksel cihaza kurulacak her uygulamanin
-# provisioning profile + distribution certificate ile imzalanmasini sart
-# kosuyor; ikisi de ucretli Apple Developer Program uyeligine bagli. Uyelik
-# alinirsa buraya bir "ios" job'i eklenebilir (EAS Build ile).
+# iOS icin ayri bir akis var: .github/workflows/ios-ipa.yml
+# O da GitHub'in macOS runner'inda imzasiz bir .ipa uretiyor; imzalama
+# telefonda SideStore/AltStore tarafindan yapiliyor.
 
 on:
   push:
@@ -97,10 +96,13 @@ jobs:
           **Android tablet:** Aşağıdaki `.apk` dosyasını tablete indirin.
           Ayarlar'da "bilinmeyen kaynaklardan kurulum"a izin verip dosyayı açın.
 
-          **iPad:** Kurulum dosyası yok. Apple, cihaza kurulacak her uygulamanın
-          imzalanmasını zorunlu tutuyor ve bu ücretli Apple Developer Program
-          üyeliği gerektiriyor. iPad'de oynamak için depoyu klonlayıp
-          `npm start` çalıştırın ve QR kodu **Expo Go** ile okutun.
+          **iPad:** Aşağıdaki imzasız `.ipa` dosyasını **SideStore** veya
+          **AltStore** ile yükleyin; imzalama telefonda kendi Apple ID'nizle
+          yapılır. Ücretsiz Apple ID kullanıyorsanız imzanın 7 günde bir
+          yenilenmesi gerekir.
+
+          Alternatif olarak depoyu klonlayıp `npm start` çalıştırın ve QR kodu
+          **Expo Go** ile okutun.
           EOF
 
       - name: Release olustur ve APK'yi ekle

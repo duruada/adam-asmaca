@@ -1,0 +1,140 @@
+name: iOS IPA (imzasız)
+
+# SideStore / AltStore ile kurmak için imzasız bir IPA üretir.
+# Apple'ın imzalama işini SideStore telefonda kendi Apple ID'nizle yapar,
+# bu yüzden burada bilerek imzalamıyoruz. Ne Mac ne de ücretli Apple
+# Developer üyeliği gerekiyor; derleme GitHub'ın macOS runner'ında dönüyor.
+#
+# Çalıştırmak: GitHub → Actions → "iOS IPA (imzasız)" → Run workflow
+# Etiket (v1.2.0) verilirse IPA aynı isimli Release'e de eklenir.
+#
+# Bu akış duruada/ters-ses deposundaki çalışan kurgunun uyarlamasıdır.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release etiketi (boş bırakılırsa sadece artifact üretilir)'
+        required: false
+        default: ''
+
+jobs:
+  ipa:
+    name: iOS IPA
+    # macos-15 imajında en yeni Xcode 26.3'te kalıyor ve Expo'nun Swift
+    # kaynağı derlenmiyor. macos-26 imajı Xcode 26.6 taşıyor.
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Etiketi belirle
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="${{ inputs.tag }}"
+          fi
+          if [ -n "$TAG" ]; then
+            NAME="adam-asmaca-$TAG-unsigned.ipa"
+          else
+            NAME="adam-asmaca-unsigned.ipa"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "ipa=$NAME" >> "$GITHUB_OUTPUT"
+          echo "Etiket: ${TAG:-(yok)}  Dosya: $NAME"
+
+      # Expo SDK 57 iOS derlemelerini Xcode 26.6 ile yapıyor. Daha eski
+      # sürümler Expo'nun Swift kaynağını derleyemiyor: 26.0 'weak let'
+      # sözdizimini reddediyor, 26.3 tip çıkarımında takılıyor.
+      - name: Xcode sürümünü seç
+        run: |
+          echo "Kurulu Xcode sürümleri:"
+          ls -d /Applications/Xcode*.app
+          if [ -d /Applications/Xcode_26.6.app ]; then
+            CHOSEN=/Applications/Xcode_26.6.app
+          else
+            echo "Xcode 26.6 bulunamadı, en yenisine düşülüyor."
+            CHOSEN=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          fi
+          echo "Seçilen: $CHOSEN"
+          sudo xcode-select -s "$CHOSEN/Contents/Developer"
+          xcodebuild -version
+          swift --version
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Bağımlılıkları kur
+        run: npm ci
+
+      - name: iOS projesini üret
+        run: npx expo prebuild --platform ios --clean
+
+      - name: CocoaPods bağımlılıkları
+        working-directory: ios
+        run: pod install
+
+      # Şema adı app.json'daki uygulama adından türetiliyor; sabit yazmak
+      # yerine üretilen workspace'ten okuyoruz.
+      - name: Şemayı bul
+        id: scheme
+        run: |
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          NAME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "Şema: $NAME"
+
+      - name: İmzasız arşiv oluştur
+        run: |
+          xcodebuild archive \
+            -workspace "${{ steps.scheme.outputs.workspace }}" \
+            -scheme "${{ steps.scheme.outputs.name }}" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            ONLY_ACTIVE_ARCH=NO
+
+      # IPA aslında Payload/ klasöründe .app taşıyan bir zip dosyası.
+      - name: IPA paketle
+        run: |
+          mkdir -p "$RUNNER_TEMP/Payload"
+          cp -R "$RUNNER_TEMP/App.xcarchive/Products/Applications/"*.app "$RUNNER_TEMP/Payload/"
+          cd "$RUNNER_TEMP"
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          zip -qry "$GITHUB_WORKSPACE/dist/${{ steps.meta.outputs.ipa }}" Payload
+          ls -lh "$GITHUB_WORKSPACE/dist/${{ steps.meta.outputs.ipa }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.ipa }}
+          path: dist/*.ipa
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Release'e ekle
+        if: steps.meta.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          IPA: dist/${{ steps.meta.outputs.ipa }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$IPA" --clobber
+          else
+            gh release create "$TAG" "$IPA" --title "Adam Asmaca $TAG" --generate-notes
+          fi

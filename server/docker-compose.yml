@@ -1,0 +1,43 @@
+# Liderlik tablosu servisi.
+#
+# Hicbir port yayinlamiyor: 80 ve 443 zaten OrbitEye'in Caddy'sinde.
+# Bu servis o Caddy'nin gorebilmesi icin ayni aga (orbitcloud_internal)
+# katiliyor ve "ada-api" takma adiyla cagriliyor.
+#
+# Ag "external: true" olarak tanimli, yani bu compose onu olusturmaya ya da
+# silmeye calismiyor - OrbitEye'in agina dokunulmuyor.
+
+services:
+  api:
+    build: .
+    image: ada-liderlik-api
+    container_name: ada-liderlik-api
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DB_DIR: /data
+      RETENTION_DAYS: "180"
+    volumes:
+      - liderlik_data:/data
+    networks:
+      orbitcloud_internal:
+        aliases:
+          - ada-api
+    # Guvenlik: yazilabilir tek yer /data hacmi.
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  liderlik_data:
+
+networks:
+  orbitcloud_internal:
+    external: true

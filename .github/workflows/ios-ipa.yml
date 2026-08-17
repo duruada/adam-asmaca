@@ -132,9 +132,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.meta.outputs.tag }}
           IPA: dist/${{ steps.meta.outputs.ipa }}
+        # GitHub API arada 503 donuyor ve tek deneme artifact'i kaybettiriyor.
+        # Tekrar deneme ayni zamanda iki akisin ayni anda release olusturma
+        # yarisini da cozuyor: ikinci denemede release var, upload'a duser.
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$IPA" --clobber
-          else
-            gh release create "$TAG" "$IPA" --title "Adam Asmaca $TAG" --generate-notes
-          fi
+          publish() {
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release upload "$TAG" "$IPA" --clobber
+            else
+              gh release create "$TAG" "$IPA" --title "Adam Asmaca $TAG" --generate-notes
+            fi
+          }
+          for i in 1 2 3 4 5; do
+            if publish; then echo "yayinlandi (deneme $i)"; exit 0; fi
+            echo "deneme $i basarisiz, $((i * 15)) sn bekleniyor"
+            sleep $((i * 15))
+          done
+          echo "::error::release'e eklenemedi"
+          exit 1

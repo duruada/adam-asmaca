@@ -114,11 +114,23 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.meta.outputs.tag }}
           APK: dist/${{ steps.meta.outputs.apk }}
+        # GitHub API arada 503 donuyor ve tek deneme artifact'i kaybettiriyor.
+        # Tekrar deneme ayni zamanda iki akisin ayni anda release olusturma
+        # yarisini da cozuyor: ikinci denemede release var, upload'a duser.
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$APK" --clobber
-          else
-            gh release create "$TAG" "$APK" \
-              --title "Adam Asmaca $TAG" \
-              --notes-file release-notes.md
-          fi
+          publish() {
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release upload "$TAG" "$APK" --clobber
+            else
+              gh release create "$TAG" "$APK" \
+                --title "Adam Asmaca $TAG" \
+                --notes-file release-notes.md
+            fi
+          }
+          for i in 1 2 3 4 5; do
+            if publish; then echo "yayinlandi (deneme $i)"; exit 0; fi
+            echo "deneme $i basarisiz, $((i * 15)) sn bekleniyor"
+            sleep $((i * 15))
+          done
+          echo "::error::release'e eklenemedi"
+          exit 1

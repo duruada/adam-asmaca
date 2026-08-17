@@ -12,7 +12,19 @@ import { StatusBar } from 'expo-status-bar';
 import { useKeepAwake } from 'expo-keep-awake';
 import * as Haptics from 'expo-haptics';
 
-import { MAX_MISTAKES, TOTAL_QUESTIONS, buildQuestions } from './src/gameLogic';
+import {
+  MAX_MISTAKES,
+  TOTAL_QUESTIONS,
+  pickQuestions,
+  weakestFacts,
+} from './src/gameLogic';
+import {
+  emptyProgress,
+  personalBest,
+  recordAnswer,
+  recordRound,
+} from './src/facts';
+import { clearProgress, loadProgress, saveProgress } from './src/storage';
 import { colors, createScale, tabular } from './src/theme';
 import EndScreen from './src/components/EndScreen';
 import Gallows from './src/components/Gallows';
@@ -42,7 +54,7 @@ function Game() {
   const landscape = width > height;
 
   const [phase, setPhase] = useState('start'); // start | playing | end
-  const [questions, setQuestions] = useState(buildQuestions);
+  const [questions, setQuestions] = useState([]);
   const [index, setIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [mistakes, setMistakes] = useState(0);
@@ -51,15 +63,34 @@ function Game() {
   const [locked, setLocked] = useState(false);
   const [feedback, setFeedback] = useState(null); // { kind, text }
   const [result, setResult] = useState(null);
+  const [ready, setReady] = useState(false);
 
+  /**
+   * İlerleme tek bir değişebilir nesnede tutuluyor: her cevapta state
+   * güncellemek gereksiz render doğuruyor, oysa bu veri sadece tur
+   * başında (soru seçimi) ve tur sonunda (grafik) okunuyor.
+   */
+  const progress = useRef(emptyProgress());
   const timer = useRef(null);
   const shake = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    let alive = true;
+    loadProgress().then((p) => {
+      if (!alive) return;
+      progress.current = p;
+      setReady(true);
+    });
+    return () => {
+      alive = false;
+      clearTimeout(timer.current);
+    };
+  }, []);
 
   const newGame = useCallback(() => {
     clearTimeout(timer.current);
-    setQuestions(buildQuestions());
+    progress.current.round += 1;
+    setQuestions(pickQuestions(progress.current));
     setIndex(0);
     setCorrect(0);
     setMistakes(0);
@@ -95,6 +126,11 @@ function Game() {
     const nextMistakes = isRight ? mistakes : mistakes + 1;
     const nextMissed = isRight ? missed : [...missed, `${q.a}×${q.b}=${truth}`];
 
+    // Her cevap anında kaydediliyor: uygulama tur ortasında kapanırsa
+    // o ana kadarki bilgi kaybolmasın.
+    recordAnswer(progress.current, q.a, q.b, isRight);
+    saveProgress(progress.current);
+
     setLocked(true);
     setCorrect(nextCorrect);
     setMistakes(nextMistakes);
@@ -117,11 +153,24 @@ function Game() {
 
     timer.current = setTimeout(() => {
       if (lost || nextIndex >= TOTAL_QUESTIONS) {
+        // Rekor karşılaştırması bu tur eklenmeden yapılmalı.
+        const previousBest = personalBest(progress.current);
+        recordRound(progress.current, {
+          correct: nextCorrect,
+          mistakes: nextMistakes,
+          won: !lost,
+        });
+        saveProgress(progress.current);
+
         setResult({
           won: !lost,
           correct: nextCorrect,
           mistakes: nextMistakes,
           missed: nextMissed,
+          history: [...progress.current.history],
+          best: Math.max(previousBest, nextCorrect),
+          isRecord: nextCorrect > previousBest && previousBest > 0,
+          working: weakestFacts(progress.current, 5),
         });
         setPhase('end');
       } else {
@@ -153,7 +202,29 @@ function Game() {
   const confirmRestart = useCallback(() => {
     Alert.alert('Baştan başla', 'Oyun sıfırlansın mı?', [
       { text: 'Vazgeç', style: 'cancel' },
-      { text: 'Baştan başla', style: 'destructive', onPress: newGame },
+      { text: 'Yeni tur', onPress: newGame },
+      {
+        text: 'İlerlemeyi sil',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            'İlerlemeyi sil',
+            'Hangi çarpımlarda zorlandığı ve bütün tur geçmişi silinecek. Emin misin?',
+            [
+              { text: 'Vazgeç', style: 'cancel' },
+              {
+                text: 'Sil',
+                style: 'destructive',
+                onPress: () => {
+                  clearProgress();
+                  progress.current = emptyProgress();
+                  newGame();
+                },
+              },
+            ]
+          );
+        },
+      },
     ]);
   }, [newGame]);
 
@@ -162,92 +233,96 @@ function Game() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom', 'left', 'right']}>
-      <View style={[styles.page, { padding: s(12), gap: s(10) }]}>
-        <TopBar
-          questionNo={index + 1}
-          correct={correct}
-          mistakes={mistakes}
-          onRestart={confirmRestart}
-          s={s}
-        />
+      {question && (
+        <View style={[styles.page, { padding: s(12), gap: s(10) }]}>
+          <TopBar
+            questionNo={index + 1}
+            correct={correct}
+            mistakes={mistakes}
+            onRestart={confirmRestart}
+            s={s}
+          />
 
-        <View style={[styles.main, { gap: s(10) }, landscape && styles.mainRow]}>
-          <View
-            style={[
-              styles.panel,
-              styles.stage,
-              { borderRadius: s(14), padding: s(10) },
-            ]}
-          >
-            {/* Sallanma sadece bitiş ekranı açılana kadar sürsün. */}
-            <Gallows
-              mistakes={mistakes}
-              dead={dead}
-              swaying={dead && phase === 'playing'}
-            />
-          </View>
+          <View style={[styles.main, { gap: s(10) }, landscape && styles.mainRow]}>
+            <View
+              style={[
+                styles.panel,
+                styles.stage,
+                { borderRadius: s(14), padding: s(10) },
+              ]}
+            >
+              {/* Sallanma sadece bitiş ekranı açılana kadar sürsün. */}
+              <Gallows
+                mistakes={mistakes}
+                dead={dead}
+                swaying={dead && phase === 'playing'}
+              />
+            </View>
 
-          <View
-            style={[
-              styles.panel,
-              styles.play,
-              { borderRadius: s(14), padding: s(12) },
-            ]}
-          >
-            <View style={[styles.playInner, { gap: s(10), maxWidth: s(520) }]}>
-              <Text style={[styles.question, tabular, { fontSize: s(46) }]}>
-                {question.a}
-                <Text style={styles.operator}> × </Text>
-                {question.b}
-                <Text style={styles.operator}> = ?</Text>
-              </Text>
+            <View
+              style={[
+                styles.panel,
+                styles.play,
+                { borderRadius: s(14), padding: s(12) },
+              ]}
+            >
+              <View style={[styles.playInner, { gap: s(10), maxWidth: s(520) }]}>
+                <Text style={[styles.question, tabular, { fontSize: s(46) }]}>
+                  {question.a}
+                  <Text style={styles.operator}> × </Text>
+                  {question.b}
+                  <Text style={styles.operator}> = ?</Text>
+                </Text>
 
-              <Animated.View
-                style={[
-                  styles.answer,
-                  {
-                    height: s(64),
-                    borderRadius: s(12),
-                    transform: [{ translateX: shake }],
-                  },
-                  feedback?.kind === 'right' && styles.answerRight,
-                  feedback?.kind === 'wrong' && styles.answerWrong,
-                ]}
-              >
-                <Text
+                <Animated.View
                   style={[
-                    styles.answerText,
-                    tabular,
-                    { fontSize: s(36) },
-                    !typed && styles.answerPlaceholder,
+                    styles.answer,
+                    {
+                      height: s(64),
+                      borderRadius: s(12),
+                      transform: [{ translateX: shake }],
+                    },
+                    feedback?.kind === 'right' && styles.answerRight,
+                    feedback?.kind === 'wrong' && styles.answerWrong,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.answerText,
+                      tabular,
+                      { fontSize: s(36) },
+                      !typed && styles.answerPlaceholder,
+                      feedback?.kind === 'right' && { color: colors.green },
+                      feedback?.kind === 'wrong' && { color: colors.red },
+                    ]}
+                  >
+                    {typed || '—'}
+                  </Text>
+                </Animated.View>
+
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={[
+                    styles.hint,
+                    { fontSize: s(17), minHeight: s(24) },
                     feedback?.kind === 'right' && { color: colors.green },
                     feedback?.kind === 'wrong' && { color: colors.red },
                   ]}
                 >
-                  {typed || '—'}
+                  {feedback ? feedback.text : ' '}
                 </Text>
-              </Animated.View>
 
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                style={[
-                  styles.hint,
-                  { fontSize: s(17), minHeight: s(24) },
-                  feedback?.kind === 'right' && { color: colors.green },
-                  feedback?.kind === 'wrong' && { color: colors.red },
-                ]}
-              >
-                {feedback ? feedback.text : ' '}
-              </Text>
-
-              <Keypad onPress={handleKey} disabled={locked} s={s} />
+                <Keypad onPress={handleKey} disabled={locked} s={s} />
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      )}
 
-      {phase === 'start' && <StartScreen onStart={newGame} s={s} />}
+      {phase === 'start' && (
+        <StartScreen onStart={newGame} loading={!ready} s={s} />
+      )}
       {phase === 'end' && result && (
         <EndScreen result={result} onRestart={newGame} s={s} />
       )}

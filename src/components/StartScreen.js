@@ -5,7 +5,7 @@ import { MAX_MISTAKES, MAX_FACTOR, TOTAL_QUESTIONS } from '../gameLogic';
 import { colors } from '../theme';
 import BigButton from './BigButton';
 
-export default function StartScreen({ onStart, s }) {
+export default function StartScreen({ onStart, loading, s }) {
   const rules = [
     [String(TOTAL_QUESTIONS), `soru sorulur, hepsi ${MAX_FACTOR}×${MAX_FACTOR}'a kadar çarpma.`],
     ['✓', 'Doğru cevap: adam güvende kalır.'],
@@ -38,7 +38,12 @@ export default function StartScreen({ onStart, s }) {
           ))}
         </View>
 
-        <BigButton label="Başla" onPress={onStart} s={s} />
+        <BigButton
+          label={loading ? 'Hazırlanıyor…' : 'Başla'}
+          onPress={onStart}
+          disabled={loading}
+          s={s}
+        />
       </ScrollView>
     </View>
   );

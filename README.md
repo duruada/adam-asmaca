@@ -14,6 +14,33 @@ native uygulama; Expo (React Native) ile yazıldı.
 - 20 soru bitip adam asılmadıysa oyuncu kazanır.
 - Bitiş ekranında yanlış yapılan çarpımlar listelenir.
 
+## Zorlandığı çarpımları hatırlıyor
+
+Sorular rastgele değil. Uygulama her çarpım için ne kadar sorulduğunu ve
+kaçırıldığını cihazda saklıyor, sonraki turlarda **zorlandığı çarpımları daha
+sık** soruyor. Aralıklı tekrar mantığı: kaçırılan çarpım birkaç tur üst üste
+gelir, bilindikçe seyrekleşir.
+
+Puanlama [src/gameLogic.js](src/gameLogic.js) içindeki `factScore` fonksiyonunda:
+
+| Etken | Etki |
+| --- | --- |
+| Son hatalar (`strikes`) | En güçlü sinyal. Yanlış +2 kademe, doğru −1 kademe. |
+| Hiç sorulmamış | +2 — yoksa bazı çarpımlar hiç çıkmıyor. |
+| Üst üste doğru (`streak`) | Kademeli geri çekilme, en fazla −0.8. |
+| Geçen turda soruldu | −0.6, aynı soru üst üste gelmesin. |
+| Kendiliğinden zorluk | `1×` −0.7, `10×` −0.4, `3–9` arası +0.4. |
+
+Taban puan 0.15: ezberlenen çarpım seyrekleşir ama **hiç kaybolmaz**, arada
+bir kontrol için gelir.
+
+Bitiş ekranında ayrıca kişisel rekor, son 12 turun grafiği ve üzerinde
+çalışılan çarpımlar görünüyor. Sağ üstteki ↺ düğmesinden ilerleme silinebilir.
+
+> Puan, madalya, seri ve süre sayacı bilerek yok. Dışsal ödül motivasyonu
+> matematikten ödüle kaydırıyor; süre baskısı da matematik kaygısının bilinen
+> tetikleyicisi. Onun yerine kendi rekorunu kırma var.
+
 ## Çalıştırma
 
 Bilgisayarda geliştirme sunucusunu başlat:
@@ -97,7 +124,9 @@ imzalı build gerekir, o noktada Apple Developer üyeliği devreye girer.
 | Dosya | İçerik |
 | --- | --- |
 | [App.js](App.js) | Ekran düzeni, oyun akışı, cevap kontrolü |
-| [src/gameLogic.js](src/gameLogic.js) | Soru üretimi ve ayarlar |
+| [src/gameLogic.js](src/gameLogic.js) | Soru seçimi (ağırlıklı), ayarlar |
+| [src/facts.js](src/facts.js) | Çarpım istatistiklerinin saf mantığı |
+| [src/storage.js](src/storage.js) | İlerlemeyi cihazda saklama |
 | [src/theme.js](src/theme.js) | Renkler ve ekran boyutuna göre ölçekleme |
 | [src/components/Gallows.js](src/components/Gallows.js) | Darağacı ve adamın çizimi |
 | [src/components/Keypad.js](src/components/Keypad.js) | Rakam tuş takımı |

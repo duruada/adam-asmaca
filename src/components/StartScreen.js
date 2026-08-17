@@ -20,10 +20,12 @@ export default function StartScreen({ onStart, s }) {
         contentContainerStyle={[styles.content, { gap: s(22), padding: s(24) }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { fontSize: s(38), lineHeight: s(45) }]}>
-          Adam Asmaca{'\n'}
-          <Text style={{ color: colors.blue }}>Çarpım Tablosu</Text>
-        </Text>
+        <View style={{ alignItems: 'center', gap: s(6) }}>
+          <Text style={[styles.title, { fontSize: s(34), lineHeight: s(41) }]}>
+            Ada'nın{'\n'}Adam Asmaca Oyunu
+          </Text>
+          <Text style={[styles.subtitle, { fontSize: s(18) }]}>Çarpım Tablosu</Text>
+        </View>
 
         <View style={{ gap: s(10), maxWidth: s(420) }}>
           {rules.map(([marker, text]) => (
@@ -49,6 +51,7 @@ const styles = StyleSheet.create({
   },
   content: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
   title: { fontWeight: '800', color: colors.ink, textAlign: 'center' },
+  subtitle: { fontWeight: '700', color: colors.blue, textAlign: 'center' },
   rule: { flexDirection: 'row', alignItems: 'flex-start' },
   marker: { fontWeight: '800', color: colors.ink },
   ruleText: { flex: 1, color: colors.inkSoft },

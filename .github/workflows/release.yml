@@ -67,11 +67,15 @@ jobs:
         env:
           CI: '1'
 
+      # x86/x86_64 sadece emulator icin gerekir; gercek tabletler ARM.
+      # Ikisini birden atmak APK'yi kabaca yariya indiriyor. armeabi-v7a
+      # eski 32-bit tabletler icin duruyor.
       - name: Derle
         working-directory: android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon --stacktrace \
+            -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
 
       - name: APK'yi dist/ altina al
         run: |

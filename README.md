@@ -1,4 +1,4 @@
-# Adam Asmaca — Çarpım Tablosu
+# Ada'nın Adam Asmaca Oyunu
 
 Çocuklar için çarpım tablosu alıştırması. iPad ve Android tablette çalışan
 native uygulama; Expo (React Native) ile yazıldı.

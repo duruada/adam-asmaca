@@ -21,9 +21,8 @@
     "android": {
       "package": "com.aren.adamasmaca",
       "adaptiveIcon": {
-        "backgroundColor": "#F4EFE4",
+        "backgroundColor": "#7F77DD",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
     },
@@ -35,9 +34,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 220,
+          "imageWidth": 320,
           "resizeMode": "contain",
-          "backgroundColor": "#F4EFE4"
+          "backgroundColor": "#7F77DD"
         }
       ]
     ]

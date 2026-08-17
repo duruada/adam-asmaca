@@ -19,7 +19,11 @@ import {
   weakestFacts,
 } from './src/gameLogic';
 import {
+  FLUENT_MS,
+  bestAvgMs,
+  bestLightning,
   emptyProgress,
+  fluentCount,
   personalBest,
   recordAnswer,
   recordRound,
@@ -74,6 +78,17 @@ function Game() {
   const timer = useRef(null);
   const shake = useRef(new Animated.Value(0)).current;
 
+  /**
+   * Hız ölçümü. Sayaç ekranda görünmüyor — süre baskısı yaratmadan
+   * otomatikliği ölçmek için sessizce kaydediliyor. Soru asla zaman
+   * aşımına uğramıyor.
+   *
+   * Ölçüm sorunun ekrana gelmesiyle başlıyor; geri bildirim bekleme
+   * süreleri dışarıda kalıyor.
+   */
+  const shownAt = useRef(0);
+  const times = useRef([]); // bu turdaki doğru cevapların süreleri (ms)
+
   useEffect(() => {
     let alive = true;
     loadProgress().then((p) => {
@@ -90,6 +105,8 @@ function Game() {
   const newGame = useCallback(() => {
     clearTimeout(timer.current);
     progress.current.round += 1;
+    times.current = [];
+    shownAt.current = Date.now();
     setQuestions(pickQuestions(progress.current));
     setIndex(0);
     setCorrect(0);
@@ -121,14 +138,17 @@ function Game() {
     const q = questions[index];
     const truth = q.a * q.b;
     const isRight = Number(typed) === truth;
+    const ms = Math.max(0, Date.now() - shownAt.current);
 
     const nextCorrect = isRight ? correct + 1 : correct;
     const nextMistakes = isRight ? mistakes : mistakes + 1;
     const nextMissed = isRight ? missed : [...missed, `${q.a}×${q.b}=${truth}`];
 
+    if (isRight) times.current.push(ms);
+
     // Her cevap anında kaydediliyor: uygulama tur ortasında kapanırsa
     // o ana kadarki bilgi kaybolmasın.
-    recordAnswer(progress.current, q.a, q.b, isRight);
+    recordAnswer(progress.current, q.a, q.b, isRight, ms);
     saveProgress(progress.current);
 
     setLocked(true);
@@ -153,12 +173,23 @@ function Game() {
 
     timer.current = setTimeout(() => {
       if (lost || nextIndex >= TOTAL_QUESTIONS) {
-        // Rekor karşılaştırması bu tur eklenmeden yapılmalı.
+        const t = times.current;
+        const avgMs = t.length ? Math.round(t.reduce((x, y) => x + y, 0) / t.length) : null;
+        const fastestMs = t.length ? Math.min(...t) : null;
+        const lightning = t.filter((x) => x < FLUENT_MS).length;
+
+        // Rekor karşılaştırmaları bu tur eklenmeden yapılmalı.
         const previousBest = personalBest(progress.current);
+        const previousLightning = bestLightning(progress.current);
+        const previousAvg = bestAvgMs(progress.current);
+
         recordRound(progress.current, {
           correct: nextCorrect,
           mistakes: nextMistakes,
           won: !lost,
+          avgMs,
+          fastestMs,
+          lightning,
         });
         saveProgress(progress.current);
 
@@ -171,6 +202,13 @@ function Game() {
           best: Math.max(previousBest, nextCorrect),
           isRecord: nextCorrect > previousBest && previousBest > 0,
           working: weakestFacts(progress.current, 5),
+          avgMs,
+          fastestMs,
+          lightning,
+          bestLightning: Math.max(previousLightning, lightning),
+          isSpeedRecord:
+            avgMs != null && previousAvg != null && avgMs < previousAvg,
+          fluent: fluentCount(progress.current),
         });
         setPhase('end');
       } else {
@@ -178,6 +216,7 @@ function Game() {
         setTyped('');
         setFeedback(null);
         setLocked(false);
+        shownAt.current = Date.now();
       }
     }, wait);
   }, [typed, questions, index, correct, mistakes, missed, runShake]);

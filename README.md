@@ -25,21 +25,41 @@ Puanlama [src/gameLogic.js](src/gameLogic.js) içindeki `factScore` fonksiyonund
 
 | Etken | Etki |
 | --- | --- |
-| Son hatalar (`strikes`) | En güçlü sinyal. Yanlış +2 kademe, doğru −1 kademe. |
+| Son hatalar (`strikes`) | En güçlü sinyal. Yanlış +2 kademe, hızlı doğru −1 kademe. |
+| Son cevap yavaştı | +1.2 — doğru bilse de otomatikleşmemiş. |
 | Hiç sorulmamış | +2 — yoksa bazı çarpımlar hiç çıkmıyor. |
-| Üst üste doğru (`streak`) | Kademeli geri çekilme, en fazla −0.8. |
+| Üst üste hızlı doğru (`streak`) | Kademeli geri çekilme, en fazla −0.8. |
 | Geçen turda soruldu | −0.6, aynı soru üst üste gelmesin. |
 | Kendiliğinden zorluk | `1×` −0.7, `10×` −0.4, `3–9` arası +0.4. |
 
 Taban puan 0.15: ezberlenen çarpım seyrekleşir ama **hiç kaybolmaz**, arada
 bir kontrol için gelir.
 
-Bitiş ekranında ayrıca kişisel rekor, son 12 turun grafiği ve üzerinde
-çalışılan çarpımlar görünüyor. Sağ üstteki ↺ düğmesinden ilerleme silinebilir.
+## Hız: otomatiklik ölçülüyor
 
-> Puan, madalya, seri ve süre sayacı bilerek yok. Dışsal ödül motivasyonu
-> matematikten ödüle kaydırıyor; süre baskısı da matematik kaygısının bilinen
-> tetikleyicisi. Onun yerine kendi rekorunu kırma var.
+Çarpım tablosunda hedef **otomatiklik** — cevabı hesaplamadan hatırlamak.
+Çalışma belleği sınırlı olduğu için bu önemli: temel çarpımı hesaplamak
+zorunda kalan çocuk, o belleği uzun çarpma veya kesirler için
+kullanamıyor. Yani hız süsleme değil, "cevabı biliyor" ile "çarpımı
+öğrenmiş" arasındaki fark.
+
+Eşik **3 saniye** (`FLUENT_MS`). Altında verilen doğru cevap hatırlama,
+üstündeki hesaplama sayılıyor. Bunun somut sonucu:
+
+- **Doğru ama yavaş cevap öğrenilmiş sayılmıyor.** Seriyi ilerletmiyor,
+  hatayı silmiyor — çarpım tekrar listesinde kalıyor.
+- **Sadece hızlı doğru cevap** seriyi ilerletiyor ve hatayı azaltıyor.
+
+Bitiş ekranında ortalama süre, en hızlı cevap, şimşek sayısı (3 sn altı
+doğru cevap) ve "55 çarpımdan kaçını artık hatırlıyorsun" görünüyor.
+
+> **Sayaç ekranda görünmüyor** ve soru asla zaman aşımına uğramıyor. Süre
+> sessizce ölçülüyor. Kaygı yaratan şey sürenin ölçülmesi değil, geri sayıp
+> seni başarısız ilan eden sayaç — yani baskı ile geri bildirim farklı şeyler.
+> Ada'nın yarıştığı kişi kendi dünkü hâli.
+
+Kişisel rekor, son 12 turun grafiği ve üzerinde çalışılan çarpımlar da bitiş
+ekranında. Sağ üstteki ↺ düğmesinden ilerleme silinebilir.
 
 ## Çalıştırma
 

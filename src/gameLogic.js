@@ -1,4 +1,4 @@
-import { emptyFact, factKey } from './facts';
+import { FLUENT_MS, emptyFact, factKey } from './facts';
 
 /** Bir turdaki soru sayısı. */
 export const TOTAL_QUESTIONS = 20;
@@ -35,9 +35,11 @@ export function difficultyBonus(a, b) {
  *
  * Tasarım kararları:
  * - Son hatalar en güçlü sinyal (strikes), çünkü aralıklı tekrarın işi bu.
+ * - Doğru ama yavaş cevap da sinyal: çocuk hesaplamış, hatırlamamış. Çarpım
+ *   tablosunda hedef otomatiklik olduğu için bu çarpım daha çalışılmalı.
  * - Hiç görülmemiş çarpımlar öne alınıyor, yoksa bazıları hiç sorulmuyor.
- * - Üst üste doğru bilinenler geri çekiliyor ama yok olmuyor: taban 0.15,
- *   yani ezberlenen çarpım da arada bir kontrol için geliyor.
+ * - Üst üste hızlı ve doğru bilinenler geri çekiliyor ama yok olmuyor:
+ *   taban 0.15, yani ezberlenen çarpım da arada bir kontrol için geliyor.
  * - Geçen turda sorulan hafif geri çekiliyor, aynı soru üst üste gelmesin.
  */
 export function factScore(a, b, fact, round) {
@@ -46,6 +48,7 @@ export function factScore(a, b, fact, round) {
 
   score += 2.5 * f.strikes;
   if (f.seen === 0) score += 2;
+  if (typeof f.lastMs === 'number' && f.lastMs >= FLUENT_MS) score += 1.2;
   score += difficultyBonus(a, b);
   score -= 0.2 * Math.min(f.streak, 4);
   if (f.lastRound === round - 1) score -= 0.6;
@@ -94,15 +97,23 @@ export function pickQuestions(progress) {
   );
 }
 
-/** Ada'nın en çok zorlandığı çarpımlar. Ebeveyn görünümü için. */
+/**
+ * Üzerinde çalışılan çarpımlar: kaçırılanlar ve doğru bilinip de yavaş
+ * cevaplananlar. İkisi de henüz otomatikleşmemiş demek.
+ */
 export function weakestFacts(progress, limit = 6) {
   const facts = progress?.facts ?? {};
   return Object.entries(facts)
-    .filter(([, f]) => f.wrong > 0)
+    .filter(([, f]) => f.wrong > 0 || f.slow > 0)
     .map(([key, f]) => {
       const [a, b] = key.split('x').map(Number);
       return { a, b, product: a * b, ...f };
     })
-    .sort((x, y) => y.strikes - x.strikes || y.wrong - x.wrong)
+    .sort(
+      (x, y) =>
+        y.strikes - x.strikes ||
+        y.wrong - x.wrong ||
+        (y.slow ?? 0) - (x.slow ?? 0)
+    )
     .slice(0, limit);
 }

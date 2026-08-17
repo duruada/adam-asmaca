@@ -11,6 +11,8 @@ export const colors = {
   red: '#B3402F',
   redSoft: '#F7E3DF',
   blue: '#2C5F8A',
+  /** Şimşek sayacı için: metin olarak okunabilecek kadar koyu amber. */
+  amberInk: '#A5731A',
 };
 
 /**

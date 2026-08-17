@@ -1,11 +1,11 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MAX_MISTAKES, MAX_FACTOR, TOTAL_QUESTIONS } from '../gameLogic';
 import { colors } from '../theme';
 import BigButton from './BigButton';
 
-export default function StartScreen({ onStart, loading, s }) {
+export default function StartScreen({ onStart, loading, board, onOpenBoard, s }) {
   const rules = [
     [String(TOTAL_QUESTIONS), `soru sorulur, hepsi ${MAX_FACTOR}×${MAX_FACTOR}'a kadar çarpma.`],
     ['✓', 'Doğru cevap: adam güvende kalır.'],
@@ -44,6 +44,14 @@ export default function StartScreen({ onStart, loading, s }) {
           disabled={loading}
           s={s}
         />
+
+        <Pressable onPress={onOpenBoard} hitSlop={10} disabled={loading}>
+          <Text style={[styles.boardLink, { fontSize: s(15) }]}>
+            {board?.room
+              ? `Liderlik Tablosu · ${board.room}`
+              : 'Arkadaşlarınla yarış →'}
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -60,4 +68,5 @@ const styles = StyleSheet.create({
   rule: { flexDirection: 'row', alignItems: 'flex-start' },
   marker: { fontWeight: '800', color: colors.ink },
   ruleText: { flex: 1, color: colors.inkSoft },
+  boardLink: { color: colors.blue, fontWeight: '800', textAlign: 'center' },
 });

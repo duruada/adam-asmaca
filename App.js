@@ -29,10 +29,12 @@ import {
   recordRound,
 } from './src/facts';
 import { clearProgress, loadProgress, saveProgress } from './src/storage';
+import { loadSettings as loadBoardSettings, submitScore } from './src/leaderboard';
 import { colors, createScale, tabular } from './src/theme';
 import EndScreen from './src/components/EndScreen';
 import Gallows from './src/components/Gallows';
 import Keypad from './src/components/Keypad';
+import LeaderboardScreen from './src/components/LeaderboardScreen';
 import StartScreen from './src/components/StartScreen';
 import TopBar from './src/components/TopBar';
 
@@ -69,6 +71,12 @@ function Game() {
   const [result, setResult] = useState(null);
   const [ready, setReady] = useState(false);
 
+  /** Liderlik tablosu: oda + takma ad. Kurulmamışsa null. */
+  const [board, setBoard] = useState(null);
+  const [showBoard, setShowBoard] = useState(false);
+  /** Skor gönderiminin durumu: { status, rank, message } */
+  const [sendState, setSendState] = useState(null);
+
   /**
    * İlerleme tek bir değişebilir nesnede tutuluyor: her cevapta state
    * güncellemek gereksiz render doğuruyor, oysa bu veri sadece tur
@@ -91,9 +99,10 @@ function Game() {
 
   useEffect(() => {
     let alive = true;
-    loadProgress().then((p) => {
+    Promise.all([loadProgress(), loadBoardSettings()]).then(([p, b]) => {
       if (!alive) return;
       progress.current = p;
+      setBoard(b);
       setReady(true);
     });
     return () => {
@@ -210,6 +219,26 @@ function Game() {
             avgMs != null && previousAvg != null && avgMs < previousAvg,
           fluent: fluentCount(progress.current),
         });
+
+        /*
+         * Skor gönderimi oyunu asla bekletmiyor: bitiş ekranı hemen açılıyor,
+         * sıralama cevap gelince beliriyor. Ağ yoksa oyun etkilenmiyor.
+         */
+        if (board?.room) {
+          setSendState({ status: 'sending' });
+          submitScore(board.room, board.nickname, {
+            correct: nextCorrect,
+            mistakes: nextMistakes,
+            lightning,
+            avgMs,
+            fastestMs,
+          })
+            .then((r) => setSendState({ status: 'ok', rank: r.rank }))
+            .catch((e) => setSendState({ status: 'error', message: e.message }));
+        } else {
+          setSendState(null);
+        }
+
         setPhase('end');
       } else {
         setIndex(nextIndex);
@@ -219,7 +248,7 @@ function Game() {
         shownAt.current = Date.now();
       }
     }, wait);
-  }, [typed, questions, index, correct, mistakes, missed, runShake]);
+  }, [typed, questions, index, correct, mistakes, missed, runShake, board]);
 
   const handleKey = useCallback(
     (key) => {
@@ -360,10 +389,32 @@ function Game() {
       )}
 
       {phase === 'start' && (
-        <StartScreen onStart={newGame} loading={!ready} s={s} />
+        <StartScreen
+          onStart={newGame}
+          loading={!ready}
+          board={board}
+          onOpenBoard={() => setShowBoard(true)}
+          s={s}
+        />
       )}
       {phase === 'end' && result && (
-        <EndScreen result={result} onRestart={newGame} s={s} />
+        <EndScreen
+          result={result}
+          onRestart={newGame}
+          sendState={sendState}
+          board={board}
+          onOpenBoard={() => setShowBoard(true)}
+          s={s}
+        />
+      )}
+
+      {showBoard && (
+        <LeaderboardScreen
+          settings={board}
+          onSettingsChange={setBoard}
+          onClose={() => setShowBoard(false)}
+          s={s}
+        />
       )}
     </SafeAreaView>
   );

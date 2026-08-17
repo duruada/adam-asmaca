@@ -61,6 +61,25 @@ doğru cevap) ve "55 çarpımdan kaçını artık hatırlıyorsun" görünüyor.
 Kişisel rekor, son 12 turun grafiği ve üzerinde çalışılan çarpımlar da bitiş
 ekranında. Sağ üstteki ↺ düğmesinden ilerleme silinebilir.
 
+## Liderlik tablosu
+
+Arkadaş/sınıf grubu için ortak tablo. Açılış ekranındaki bağlantıdan girilir.
+
+**Hesap açmak gerekmiyor.** Biri "yeni oda aç" der, çıkan 6 haneli kodu
+(`BBUARG` gibi) arkadaşlarına verir; herkes bir takma ad seçer. Sunucuda
+yalnızca takma ad ve skor durur — e-posta, şifre, gerçek isim, cihaz kimliği
+hiç toplanmaz. Kayıtlar 180 gün sonra otomatik silinir.
+
+Sıralama **önce şimşeğe** göre: 3 saniyenin altında verilen doğru cevap
+sayısı. Çok doğru yapmak yetmiyor, hatırlamak gerekiyor. 20 doğru yapan yavaş
+oyuncu, 17 doğru yapıp hızlı olanın altında kalır.
+
+Skor tur sonunda kendiliğinden gönderilir. **Gönderim oyunu asla bekletmez**:
+bitiş ekranı hemen açılır, sıralama cevap gelince belirir, ağ yoksa oyun
+etkilenmez.
+
+Sunucu ayrı belgeleniyor: [server/README.md](server/README.md).
+
 ## Çalıştırma
 
 Bilgisayarda geliştirme sunucusunu başlat:

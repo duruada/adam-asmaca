@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ALL_PAIRS, TOTAL_QUESTIONS } from '../gameLogic';
 import { FLUENT_MS } from '../facts';
@@ -11,7 +11,7 @@ const CHART_ROUNDS = 12;
 
 const secs = (ms) => (ms == null ? '—' : `${(ms / 1000).toFixed(1)}`);
 
-export default function EndScreen({ result, onRestart, s }) {
+export default function EndScreen({ result, onRestart, sendState, board, onOpenBoard, s }) {
   const {
     won, correct, mistakes, missed, history, best, isRecord, working,
     avgMs, fastestMs, lightning, bestLightning, isSpeedRecord, fluent,
@@ -118,6 +118,23 @@ export default function EndScreen({ result, onRestart, s }) {
           </Section>
         )}
 
+        {/* Liderlik tablosu: gönderim oyunu bekletmediği için durum burada belirir. */}
+        <Pressable onPress={onOpenBoard} hitSlop={10}>
+          <Text style={[styles.boardLink, { fontSize: s(14) }]}>
+            {!board?.room
+              ? 'Arkadaşlarınla yarış →'
+              : sendState?.status === 'sending'
+                ? 'Skorun gönderiliyor…'
+                : sendState?.status === 'ok'
+                  ? sendState.rank
+                    ? `Odada ${sendState.rank}. sıradasın · tabloyu gör`
+                    : 'Skorun kaydedildi · tabloyu gör'
+                  : sendState?.status === 'error'
+                    ? `Skor gönderilemedi (${sendState.message}) · tekrar dene`
+                    : 'Liderlik Tablosu'}
+          </Text>
+        </Pressable>
+
         <BigButton label="Yeniden Oyna" onPress={onRestart} s={s} />
       </ScrollView>
     </View>
@@ -201,6 +218,7 @@ const styles = StyleSheet.create({
   fluentText: { textAlign: 'center', color: colors.inkSoft, fontWeight: '600' },
   fluentNum: { color: colors.green, fontWeight: '800' },
   records: { color: colors.inkSoft, fontWeight: '700' },
+  boardLink: { color: colors.blue, fontWeight: '800', textAlign: 'center' },
   sectionTitle: { color: colors.inkSoft, fontWeight: '700' },
   chart: { flexDirection: 'row', alignItems: 'flex-end' },
   barTrack: { height: '100%', justifyContent: 'flex-end', backgroundColor: colors.card },
